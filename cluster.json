@@ -1,0 +1,33 @@
+{
+	"__default__" :
+	{
+		"time" : "walltime=48:00:00",
+		"ppn" : "nodes=1:ppn=1",
+		"queue" : "hotel"
+	},
+	"bwa_mem_map" :
+	{
+		"time" : "walltime=48:00:00",
+		"ppn" : "nodes=4:ppn=4"
+	},
+	"bwa_mem_remap" :
+	{
+		"time" : "walltime=48:00:00",
+		"ppn" : "nodes=4:ppn=4"
+	},
+	"merge_bam" :
+	{
+		"time" : "walltime=48:00:00",
+		"queue" : "pdafm"
+	},
+	"find_intersection_snp" :
+	{
+		"time" : "walltime=48:00:00"
+	},
+        "haplotype_reads" :
+        {
+                "time": "walltime=24:00:00"
+        }
+}
+
+

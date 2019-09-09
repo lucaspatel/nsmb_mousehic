@@ -1,0 +1,153 @@
+# vim: syntax=python tabstop=4 expandtab
+# coding: utf-8
+
+"""
+HiC read mapping with BWA MEM (http://bio-bwa.sourceforge.net) and WASP to remove allelic bias, with additional haplotype analysis.
+"""
+
+__author__ = ["Yunjiang Qiu", "Lucas Patel"]
+__license__ = "MIT"
+
+READ_PAIR = "R1 R2".split()
+
+from snakemake.exceptions import MissingInputException
+
+'''
+rule haplotype_reads:
+    input:
+      bam = "mapping/out/{unit,[^_.]+}.sorted.bam",
+      snp = config["references"]["snp"]
+    output:
+        "mapping/out/{unit,[^_.]+}.sorted.haplotyped.bam"
+    params:
+      jobname = "{unit}.haplotype",
+      haplotype = config["scripts"]["haplotype"],
+      prefix = "mapping/out/{unit,[^_.]+}",
+      samtools = config["software"]["samtools"]
+    log:
+        "mapping/log/{unit,[^_.]+}.assign_haplotypes.log"
+    shell:
+        "python2.7 {params.haplotype} {input.bam} {input.snp} {params.prefix} 2> {log} && paste -d '\t' <({params.samtools} view {input.bam}) <(zcat {params.prefix}.haplotypes.tsv.gz) | cat <({params.samtools} view -H {input.bam}) - | {params.samtools} view -bS - | {params.samtools} sort -n - -o {output} -T {params.prefix}.hap_sort"
+'''
+
+rule combine_read_pairs:
+    input:
+        expand ("mapping/out/{{unit}}_{read}_total-keep_sorted.bam",read=READ_PAIR)
+    output:
+        "mapping/out/{unit,[^_.]+}.sorted.bam"
+    params:
+        jobname = "{unit}.combine",
+        combine = config["scripts"]["combine_read_pairs"],
+        prefix = "mapping/out/{unit,[^_.]+}.sorted",
+        samtools = config["software"]["samtools"]
+    shell:
+        "perl {params.combine} {input} | {params.samtools} view -uSh -o - - | {params.samtools} sort - -o {output} -T {params.prefix}"
+
+rule filt_chmeric_reads:
+    input:
+        "mapping/out/{unit}_{read,[R12]+}.bam"
+    output:
+        "mapping/out/{unit}_{read,[R12]+}.filt.bam"
+    params:
+        jobname = "{unit}_{read}.filt",
+        samtools = config["software"]["samtools"],
+        filt = config["scripts"]["filt_chmeric1"],
+        map_quality = config["map_quality"]
+    shell:
+        "{params.samtools} view -h {input} | perl {params.filt} | {params.samtools} view -bSh -q {params.map_quality} -o {output} -"
+
+rule refilt_chmeric_reads:
+    input:
+        "mapping/out/{unit}_{read,[R12]+}_remapped.bam"
+    output:
+        "mapping/out/{unit}_{read,[R12]+}_remapped.filt.bam"
+    params:
+        jobname = "{unit}_{read}.refilt",
+        samtools = config["software"]["samtools"],
+        filt = config["scripts"]["filt_chmeric2"],
+        map_quality = config["map_quality"]
+    shell:
+        "{params.samtools} view -h {input}|perl {params.filt}|{params.samtools} view -bSh -o {output} -"
+
+rule compare_reads:
+    input:
+        toremap = "mapping/out/{unit}_{read,[R12]+}.to.remap.bam",
+        remapped = "mapping/out/{unit}_{read,[R12]+}_remapped.filt.bam",
+        num = "mapping/out/{unit}_{read,[R12]+}.to.remap.num.gz"
+    output:
+        "mapping/out/{unit}_{read,[R12]+}_remapped_correctly.bam"
+    params:
+        jobname = "{unit}_{read}.compare",
+        compare = config["scripts"]["compare"]
+    shell:
+        "python2.7 {params.compare} {input.toremap} {input.remapped} {output} {input.num}"
+
+rule merge_remap:
+    input:
+        keep = "mapping/out/{unit}_{read,[R12]+}.keep.bam",
+        remap = "mapping/out/{unit}_{read,[R12]+}_remapped_correctly.bam"
+    output:
+        "mapping/out/{unit}_{read,[R12]+}_total-keep_sorted.bam"
+    params:
+        jobname = "{unit}_{read}.merge",
+        samtools = config["software"]["samtools"],
+        prefix = "mapping/out/{unit}_{read,[R12]+}_total-keep_sorted"
+    shell:
+        "{params.samtools} merge -c -p - {input.keep} {input.remap}|{params.samtools} sort -n - -o {output} -T {params.prefix}"
+
+rule find_intersection_snp:
+    input:
+        bam = "mapping/out/{unit}_{read,[R12]+}.filt.bam",
+        snp = config["references"]["snp"]
+    output:
+        "mapping/out/{unit}_{read,[R12]+}.sort.bam",
+        "mapping/out/{unit}_{read,[R12]+}.to.remap.bam",
+        "mapping/out/{unit}_{read,[R12]+}.to.remap.num.gz",
+        "mapping/out/{unit}_{read,[R12]+}.remap.fq.gz",
+        "mapping/out/{unit}_{read,[R12]+}.keep.bam"
+    log:
+        "mapping/log/{unit}_{read,[R12]+}.find_intersection_snp.log"
+    params:
+        jobname = "{unit}_{read}.find_snp",
+        find_snp = config["scripts"]["find_snp"],
+        prefix = "mapping/out/{unit}_{read,[R12]+}",
+        outdir = "mapping/out"
+    shell:
+        "python2.7 {params.find_snp} {input.bam} {input.snp} {params.prefix} 2>{log}" 
+
+rule bwa_mem_map:
+    input:
+        fasta = config["references"]["fasta"],
+        fastq = expand("fastq/{{unit}}_{{read,[R12]+}}.fastq{suffix}",suffix=config["input_format"]["suffix"]) 
+    output:
+        "mapping/out/{unit}_{read,[R12]+}.bam"
+    params:
+        jobname = "{unit}_{read}.map", 
+        custom = config.get("params_bwa_mem", "-L 13,13"),
+        bwa = config["software"]["bwa"],
+        samtools = config["software"]["samtools"],
+        threads = config["threads"]["bwa"],
+        readFilesCommand = config["input_format"]["command"]
+    log:
+        "mapping/log/{unit}_{read}.map.log"
+    shell:r"""
+        {params.bwa} mem {params.custom} -t {params.threads} {input.fasta} <({params.readFilesCommand} {input.fastq}) 2> {log} | {params.samtools} view -Sbh - > {output}
+        """
+
+rule bwa_mem_remap:
+    input:
+        fasta = config["references"]["fasta"],
+        fastq = "mapping/out/{unit}_{read,[R12]+}.remap.fq.gz"
+    output:
+        "mapping/out/{unit}_{read,[R12]+}_remapped.bam"
+    params:
+        jobname = "{unit}_{read}.remap", 
+        custom = config.get("params_bwa_mem", "-L 13,13"),
+        bwa = config["software"]["bwa"],
+        samtools = config["software"]["samtools"],
+        threads = config["threads"]["bwa"],
+    log:
+        "mapping/log/{unit}_{read}.remap.log"
+    shell:r"""
+        {params.bwa} mem {params.custom} -t {params.threads} {input.fasta} {input.fastq} 2> {log} | {params.samtools} view -Sbh - > {output}
+        """

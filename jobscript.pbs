@@ -1,0 +1,10 @@
+#!/bin/bash
+#PBS -q hotel
+#PBS -V 
+#PBS -M [EMAIL HERE]
+#PBS -m ae
+#PBS -A [USERNAME HERE]
+
+# properties = {properties}
+module load samtools
+{exec_job}

@@ -1,0 +1,44 @@
+# vim: syntax=python tabstop=4 expandtab
+# coding: utf-8
+
+"""
+HiC read mapping with BWA MEM (http://bio-bwa.sourceforge.net) and WASP to remove allelic bias, with additional haplotype analysis.
+"""
+
+__author__ = ["Yunjiang Qiu", "Lucas Patel"]
+__license__ = "MIT"
+
+READ_PAIR = "R1 R2".split()
+bins = ['b6', 'cast', 'homo', 'amb', 'un']
+
+from snakemake.exceptions import MissingInputException
+
+'''
+rule haplotype_split:
+  input:
+    bam = "mapping/out/{unit,[^_.]+}.sorted.haplotyped.bam"
+  output:
+    expand("mapping/out/{unit,[^_.]+}.sorted.{bin}.bam", bin=bins)
+  params:
+    split = config["software"]["split"]
+  log:
+    "mapping/log/{unit,[^_.]+}.split_haplotypes.log"
+  shell:
+    "python2.7 {split} {input}"
+'''
+
+rule haplotype_reads:
+    input:
+      bam = "mapping/out/{unit,[^_.]+}.sorted.bam",
+      snp = config["references"]["snp"]
+    output:
+        "mapping/out/{unit,[^_.]+}.sorted.haplotyped.bam"
+    params:
+      jobname = "{unit}.haplotype",
+      haplotype = config["scripts"]["haplotype"],
+      prefix = "mapping/out/{unit,[^_.]+}",
+      samtools = config["software"]["samtools"]
+    log:
+        "mapping/log/{unit,[^_.]+}.assign_haplotypes.log"
+    shell:
+        "python2.7 {params.haplotype} {input.bam} {input.snp} {params.prefix} 2> {log} && paste -d '\t' <({params.samtools} view {input.bam}) <(zcat {params.prefix}.haplotypes.tsv.gz) | cat <({params.samtools} view -H {input.bam}) - | {params.samtools} view -bS - | {params.samtools} sort -n - -o {output} -T {params.prefix}.hap_sort"

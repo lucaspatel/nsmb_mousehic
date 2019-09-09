@@ -1,0 +1,30 @@
+{
+    "references": {
+        "fasta": "genome/",
+        "snp": "snp/"
+    },
+    "units": {
+        "RH433-10k": ""
+    },
+    "input_format": {
+        "suffix": ".bz2",
+        "command": "bzcat"
+    },
+    "software": {
+        "bwa": "bwa",
+        "samtools": "samtools"
+    },
+    "scripts": {
+        "combine_read_pairs": "scripts/combine_reads_wasp_5-02-16.pl",
+        "filt_chmeric1": "scripts/filter_five_end_wasp_1.pl",
+        "filt_chmeric2": "scripts/filter_five_end_wasp_2.pl",
+        "find_snp": "scripts/find_intersecting_snps_YQ.py",
+        "compare": "scripts/filter_remapped_reads_q10.py",
+        "haplotype": "scripts/assign_haplotypes.py"
+    },
+    "threads": {
+          "bwa": "4"
+    },
+    "map_quality" : "10",
+    "platform": "Illumina"
+}

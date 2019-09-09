@@ -1,0 +1,4 @@
+*.bam
+*.fq.gz
+*.num.gz
+*.tsv.gz
