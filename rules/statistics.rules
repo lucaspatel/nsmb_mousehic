@@ -1,0 +1,85 @@
+# vim: syntax=python tabstop=4 expandtab
+# coding: utf-8
+
+"""
+HiC read mapping with BWA MEM (http://bio-bwa.sourceforge.net) and WASP to remove allelic bias, with additional haplotype analysis.
+"""
+
+__author__ = ["Lucas Patel"]
+__license__ = "MIT"
+
+from snakemake.exceptions import MissingInputException
+
+rule calculate_statistics:
+  input:
+    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.pairs")
+  output:
+    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.counts.zip")
+  params:
+    jobname = "{unit}.{bin}.stats",
+    prefix = "mapping/out/{unit,[^_.]+}",
+    bin = "{bin}",
+    count = config["scripts"]["count"],
+    cooler = config["software"]["cooler"]
+  log:
+    "mapping/log/{unit,[^_.]+}.stats.log"
+  shell:
+    "python {params.count} {input} && \
+    python {params.count} {input} --all && \
+    zip {params.prefix}.{params.bin}.counts.zip {params.prefix}.{params.bin}_*_intracounts.tsv && \
+    rm {params.prefix}.{params.bin}_*_intracounts.tsv"
+    
+rule calculate_global_statistics:
+  input:
+    expand("mapping/out/{{unit,[^_.]+}}.pairs")
+  output:
+    expand("mapping/out/{{unit,[^_.]+}}.counts.zip")
+  params:
+    jobname = "{unit}.stats",
+    prefix = "mapping/out/{unit,[^_.]+}",
+    count = config["scripts"]["count"],
+    cooler = config["software"]["cooler"]
+  log:
+    "mapping/log/{unit,[^_.]+}.stats.log"
+  shell:
+    "python {params.count} {input} && \
+    python {params.count} {input} --all && \
+    zip {params.prefix}.counts.zip {params.prefix}_*_intracounts.tsv && \
+    rm {params.prefix}_*_intracounts.tsv"
+
+rule calculate_pairing_score:
+  input:
+    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.hic")
+  output:
+    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.pairing.bedgraph")
+  params:
+    jobname = "{unit}.{bin}.calc_ps",
+    prefix = "mapping/out/{unit,[^_.]+}.{bin}",
+    pairing = config["scripts"]["pairing"],
+    cooler = config["software"]["cooler"]
+  log:
+    "mapping/log/{unit,[^_.]+}.calc_ps.log"
+  shell:
+    "hic2cool convert {input} {params.prefix}.100k.cool -r 100000 && \
+    {params.cooler} balance {params.prefix}.100k.cool --convergence-policy store_nan && \
+    python {params.pairing} --homolog-suffixes '' '' {params.prefix}.100k.cool > {output} && \
+    rm {params.prefix}.100k.cool"
+
+rule calculate_global_pairing_score:
+  input:
+    expand("mapping/out/{{unit,[^_.]+}}.hic")
+  output:
+    expand("mapping/out/{{unit,[^_.]+}}.pairing.bedgraph")
+  params:
+    jobname = "{unit}.calc_ps",
+    prefix = "mapping/out/{unit,[^_.]+}",
+    pairing = config["scripts"]["pairing"],
+    cooler = config["software"]["cooler"],
+    hic2cool = config["software"]["hic2cool"]
+  log:
+    "mapping/log/{unit,[^_.]+}.calc_ps.log"
+  shell:
+    "hic2cool convert {input} {params.prefix}.100k.cool -r 100000 && \
+    {params.cooler} balance {params.prefix}.100k.cool --convergence-policy store_nan && \
+    python {params.pairing} --homolog-suffixes '' '' {params.prefix}.100k.cool > {output} && \
+    rm {params.prefix}.100k.cool"

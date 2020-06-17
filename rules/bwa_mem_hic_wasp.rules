@@ -27,7 +27,7 @@ rule haplotype_reads:
     log:
         "mapping/log/{unit,[^_.]+}.assign_haplotypes.log"
     shell:
-        "python2.7 {params.haplotype} {input.bam} {input.snp} {params.prefix} 2> {log} && paste -d '\t' <({params.samtools} view {input.bam}) <(zcat {params.prefix}.haplotypes.tsv.gz) | cat <({params.samtools} view -H {input.bam}) - | {params.samtools} view -bS - | {params.samtools} sort -n - -o {output} -T {params.prefix}.hap_sort"
+        "/home/lpatel/software/miniconda3/envs/py2/bin/python2.7 {params.haplotype} {input.bam} {input.snp} {params.prefix} 2> {log} && paste -d '\t' <({params.samtools} view {input.bam}) <(zcat {params.prefix}.haplotypes.tsv.gz) | cat <({params.samtools} view -H {input.bam}) - | {params.samtools} view -bS - | {params.samtools} sort -n - -o {output} -T {params.prefix}.hap_sort"
 '''
 
 rule combine_read_pairs:
@@ -80,7 +80,7 @@ rule compare_reads:
         jobname = "{unit}_{read}.compare",
         compare = config["scripts"]["compare"]
     shell:
-        "python2.7 {params.compare} {input.toremap} {input.remapped} {output} {input.num}"
+        "/home/lpatel/software/miniconda3/envs/py2/bin/python2.7 {params.compare} {input.toremap} {input.remapped} {output} {input.num}"
 
 rule merge_remap:
     input:
@@ -113,7 +113,7 @@ rule find_intersection_snp:
         prefix = "mapping/out/{unit}_{read,[R12]+}",
         outdir = "mapping/out"
     shell:
-        "python2.7 {params.find_snp} {input.bam} {input.snp} {params.prefix} 2>{log}" 
+        "/home/lpatel/software/miniconda3/envs/py2/bin/python2.7 {params.find_snp} {input.bam} {input.snp} {params.prefix} 2>{log}" 
 
 rule bwa_mem_map:
     input:

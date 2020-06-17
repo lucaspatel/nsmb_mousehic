@@ -12,7 +12,14 @@ include:
     include_prefix + "bwa_mem_hic_wasp.rules"
 include:    
     include_prefix + "haplotype.rules"
+include:
+    include_prefix + "statistics.rules"
 
 rule all:
     input:
-        expand("mapping/out/{unit}.sorted.haplotyped.bam", unit=config["units"])
+        expand("mapping/out/{unit}.mcool", unit=config["units"]),
+        expand("mapping/out/{unit}.{bin}.mcool", unit=config["units"], bin=config["bins"]),
+        expand("mapping/out/{unit}.pairing.bedgraph", unit=config["units"]),
+        expand("mapping/out/{unit}.{bin}.pairing.bedgraph", unit=config["units"], bin=config["bins"]),
+        expand("mapping/out/{unit}.counts.zip", unit=config["units"]),
+        expand("mapping/out/{unit}.{bin}.counts.zip", unit=config["units"], bin=config["bins"])

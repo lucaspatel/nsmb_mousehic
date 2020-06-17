@@ -8,37 +8,157 @@ HiC read mapping with BWA MEM (http://bio-bwa.sourceforge.net) and WASP to remov
 __author__ = ["Yunjiang Qiu", "Lucas Patel"]
 __license__ = "MIT"
 
-READ_PAIR = "R1 R2".split()
-bins = ['b6', 'cast', 'homo', 'amb', 'un']
-
 from snakemake.exceptions import MissingInputException
 
-'''
-rule haplotype_split:
+rule zoomify:
   input:
-    bam = "mapping/out/{unit,[^_.]+}.sorted.haplotyped.bam"
+    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.cool")
   output:
-    expand("mapping/out/{unit,[^_.]+}.sorted.{bin}.bam", bin=bins)
+    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.mcool")
   params:
-    split = config["software"]["split"]
+    jobname = "{unit}.{bin}.zoomify",
+    cooler = config["software"]["cooler"]
   log:
-    "mapping/log/{unit,[^_.]+}.split_haplotypes.log"
+    "mapping/log/{unit,[^_.]+}.{bin}.zoomify.log"
   shell:
-    "python2.7 {split} {input}"
-'''
+    "{params.cooler} zoomify -o {output} {input}"
+
+rule zoomify_global:
+  input:
+    expand("mapping/out/{{unit,[^_.]+}}.cool")
+  output:
+    expand("mapping/out/{{unit,[^_.]+}}.mcool")
+  params:
+    jobname = "{unit}.zoomify",
+    cooler = config["software"]["cooler"]
+  log:
+    "mapping/log/{unit,[^_.]+}.zoomify.log"
+  shell:
+    "{params.cooler} zoomify -o {output} {input}"
+
+rule generate_hic_maps:
+  input:
+    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.pairs")
+  output:
+    hic = expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.hic")
+  params:
+    jobname = "{unit}.{bin}.generate_hic",
+    chroms= config["references"]["chroms"],
+    assembly = config["references"]["assembly"],
+    juicertools = config["software"]["juicertools"],
+    cooler = config["software"]["cooler"]
+  log:
+    "mapping/log/{unit,[^_.]+}.{bin}.generate_hic_maps.log"
+  shell:
+    "java -jar {params.juicertools} pre {input} {output.hic} {params.assembly}"
+
+rule generate_global_hic_maps:
+  input:
+    expand("mapping/out/{{unit,[^_.]+}}.pairs")
+  output:
+    hic = expand("mapping/out/{{unit,[^_.]+}}.hic"),
+  params:
+    jobname = "{unit}.generate_hic",
+    chroms = config["references"]["chroms"],
+    assembly = config["references"]["assembly"],
+    juicertools = config["software"]["juicertools"],
+    cooler = config["software"]["cooler"]
+  log:
+    "mapping/log/{unit,[^_.]+}.generate_maps.log"
+  shell:
+    "java -jar {params.juicertools} pre {input} {output.hic} {params.assembly}"
+
+rule generate_cool_maps:
+  input:
+    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.pairs")
+  output:
+    cool = expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.cool")
+  params:
+    jobname = "{unit}.{bin}.generate_cool",
+    chroms= config["references"]["chroms"],
+    assembly = config["references"]["assembly"],
+    juicertools = config["software"]["juicertools"],
+    cooler = config["software"]["cooler"]
+  log:
+    "mapping/log/{unit,[^_.]+}.{bin}.generate_cool_maps.log"
+  shell:
+    "{params.cooler} cload pairs -c1 2 -p1 3 -c2 4 -p2 5 {params.chroms}:1000 {input} {output.cool} && \
+    {params.cooler} balance --convergence-policy store_nan --max-iters 2000 {output.cool}"
+
+rule generate_global_cool_maps:
+  input:
+    expand("mapping/out/{{unit,[^_.]+}}.pairs")
+  output:
+    cool = expand("mapping/out/{{unit,[^_.]+}}.cool")
+  params:
+    jobname = "{unit}.generate_cool",
+    chroms = config["references"]["chroms"],
+    assembly = config["references"]["assembly"],
+    juicertools = config["software"]["juicertools"],
+    cooler = config["software"]["cooler"]
+  log:
+    "mapping/log/{unit,[^_.]+}.generate_cool_maps.log"
+  shell:
+    "{params.cooler} cload pairs -c1 2 -p1 3 -c2 4 -p2 5 {params.chroms}:1000 {input} {output.cool} && \
+    {params.cooler} balance --convergence-policy store_nan --max-iters 2000 {output.cool}"
+
+rule parse_pairs:
+  input:
+    expand("mapping/out/{{unit,[^_.]+}}.sorted.haplotyped.{{bin}}.bam")
+  output:
+    pairs = expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.pairs")
+  params:
+    jobname = "{unit}.{bin}.parse",
+    chroms= config["references"]["chroms"],
+    assembly = config["references"]["assembly"],
+    pairtools = config["software"]["pairtools"],
+  log:
+    "mapping/log/{unit,[^_.]+}.parse_pairs.log",
+  shell:
+    "{params.pairtools} parse -c {params.chroms} --assembly {params.assembly} {input} | {params.pairtools} sort -o {output.pairs}"
+
+rule parse_global_pairs:
+  input:
+    expand("mapping/out/{{unit,[^_.]+}}.sorted.haplotyped.bam")
+  output:
+    pairs = expand("mapping/out/{{unit,[^_.]+}}.pairs")
+  params:
+    jobname = "{unit}.parse",
+    chroms= config["references"]["chroms"],
+    assembly = config["references"]["assembly"],
+    pairtools = config["software"]["pairtools"],
+  log:
+    "mapping/log/{unit,[^_.]+}.parse_pairs.log",
+  shell:
+    "{params.pairtools} parse -c {params.chroms} --assembly {params.assembly} {input} | {params.pairtools} sort -o {output.pairs}"
+
+rule haplotype_split:
+    input:
+        bam = "mapping/out/{unit,[^_.]+}.sorted.haplotyped.bam"
+    output:
+        expand("mapping/out/{{unit,[^_.]+}}.sorted.haplotyped.{{bin}}.bam")
+    params:
+        jobname = "{unit}.{bin}.split",
+        split = config["scripts"]["split"],
+        ref = config["bins"][0],
+        alt = config["bins"][1]
+    log:
+        "mapping/log/{unit,[^_.]+}.{bin}.split_haplotypes.log"
+    shell:
+        "python {params.split} {input} -ref {params.ref} -alt {params.alt}"
 
 rule haplotype_reads:
-    input:
-      bam = "mapping/out/{unit,[^_.]+}.sorted.bam",
-      snp = config["references"]["snp"]
-    output:
-        "mapping/out/{unit,[^_.]+}.sorted.haplotyped.bam"
-    params:
-      jobname = "{unit}.haplotype",
-      haplotype = config["scripts"]["haplotype"],
-      prefix = "mapping/out/{unit,[^_.]+}",
-      samtools = config["software"]["samtools"]
-    log:
-        "mapping/log/{unit,[^_.]+}.assign_haplotypes.log"
-    shell:
-        "python2.7 {params.haplotype} {input.bam} {input.snp} {params.prefix} 2> {log} && paste -d '\t' <({params.samtools} view {input.bam}) <(zcat {params.prefix}.haplotypes.tsv.gz) | cat <({params.samtools} view -H {input.bam}) - | {params.samtools} view -bS - | {params.samtools} sort -n - -o {output} -T {params.prefix}.hap_sort"
+  input:
+    bam = "mapping/out/{unit,[^_.]+}.sorted.bam",
+    snp = config["references"]["snp"]
+  output:
+    "mapping/out/{unit,[^_.]+}.sorted.haplotyped.bam"
+  params:
+    jobname = "{unit}.haplotype",
+    haplotype = config["scripts"]["haplotype"],
+    prefix = "mapping/out/{unit,[^_.]+}",
+    samtools = config["software"]["samtools"]
+  log:
+    "mapping/log/{unit,[^_.]+}.assign_haplotypes.log"
+  shell:
+    "python2.7 {params.haplotype} {input.bam} {input.snp} {params.prefix} 2> {log} && paste -d '\t' <({params.samtools} view {input.bam}) <(zcat {params.prefix}.haplotypes.tsv.gz) | cat <({params.samtools} view -H {input.bam}) - | {params.samtools} view -bS - | {params.samtools} sort -n - -o {output} -T {params.prefix}.hap_sort"

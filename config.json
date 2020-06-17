@@ -1,18 +1,25 @@
 {
     "references": {
-        "fasta": "genome/",
-        "snp": "snp/"
+        "fasta": "genome/mm10.fa",
+        "snp": "snp/",
+        "assembly": "mm10",
+        "chroms": "/oasis/tscc/scratch/lpatel/02_aligned/pipeline_base"
     },
     "units": {
         "RH433-10k": ""
     },
+    "bins": ["b6", "cast", "homo", "amb", "un"],
     "input_format": {
         "suffix": ".bz2",
         "command": "bzcat"
     },
     "software": {
         "bwa": "bwa",
-        "samtools": "samtools"
+        "samtools": "samtools",
+        "juicertools": "/home/lpatel/software/juicertools/juicer_tools_1.22.01.jar",
+        "pairtools": "pairtools",
+        "cooler": "cooler",
+        "hic2cool": "hic2cool"
     },
     "scripts": {
         "combine_read_pairs": "scripts/combine_reads_wasp_5-02-16.pl",
@@ -20,7 +27,10 @@
         "filt_chmeric2": "scripts/filter_five_end_wasp_2.pl",
         "find_snp": "scripts/find_intersecting_snps_YQ.py",
         "compare": "scripts/filter_remapped_reads_q10.py",
-        "haplotype": "scripts/assign_haplotypes.py"
+        "haplotype": "scripts/assign_haplotypes.py",
+        "split": "scripts/split_haplotypes.py",
+        "count": "scripts/count_distances.py",
+        "pairing": "scripts/homolog_pairing.py"
     },
     "threads": {
           "bwa": "4"
