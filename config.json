@@ -3,10 +3,10 @@
         "fasta": "genome/mm10.fa",
         "snp": "snp/",
         "assembly": "mm10",
-        "chroms": "/oasis/tscc/scratch/lpatel/02_aligned/pipeline_base"
+        "chroms": "/oasis/tscc/scratch/lpatel/00_ref/mm10.chrom.sizes"
     },
     "units": {
-        "RH433-10k": ""
+        "test": ""
     },
     "bins": ["b6", "cast", "homo", "amb", "un"],
     "input_format": {
@@ -19,7 +19,9 @@
         "juicertools": "/home/lpatel/software/juicertools/juicer_tools_1.22.01.jar",
         "pairtools": "pairtools",
         "cooler": "cooler",
-        "hic2cool": "hic2cool"
+        "hic2cool": "hic2cool",
+        "python2": "~/software/miniconda3/envs/py2/bin/python",
+        "java": "/bin/java"
     },
     "scripts": {
         "combine_read_pairs": "scripts/combine_reads_wasp_5-02-16.pl",

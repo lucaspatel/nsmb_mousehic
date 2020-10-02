@@ -32,7 +32,7 @@ rule haplotype_reads:
 
 rule combine_read_pairs:
     input:
-        expand ("mapping/out/{{unit}}_{read}_total-keep_sorted.bam",read=READ_PAIR)
+        expand("mapping/out/{{unit}}_{read}_total-keep_sorted.bam",read=READ_PAIR)
     output:
         "mapping/out/{unit,[^_.]+}.sorted.bam"
     params:

@@ -46,15 +46,17 @@ def split_haplotypes(args):
     alternate_label = args.alt
     homologous_label = "homo"
     ambiguous_label = "amb"
-    unknown_label = "un"
+    unassignable_label = "un"
     
-    out_prefix = os.path.os.path.splitext(args.input_bam)[0]
-    
-    ref_path = out_prefix + "." + reference_label + (".sam" if args.sam else ".bam")
-    alt_path = out_prefix + "." + alternate_label + (".sam" if args.sam else ".bam")
-    homo_path = out_prefix + "." + homologous_label + (".sam" if args.sam else ".bam")
-    amb_path = out_prefix + "." + ambiguous_label + (".sam" if args.sam else ".bam")
-    un_path = out_prefix + "." + unknown_label + (".sam" if args.sam else ".bam")
+    split_input = args.input_bam.split(os.extsep, 1)
+    out_prefix, out_suffix = split_input[0], os.path.splitext(split_input[1])[0]
+    print(out_prefix, reference_label, out_suffix, ("sam" if args.sam else "bam"))
+   
+    ref_path = f"{out_prefix}.{reference_label}.{out_suffix}.{'sam' if args.sam else 'bam'}"
+    alt_path = f"{out_prefix}.{alternate_label}.{out_suffix}.{'sam' if args.sam else 'bam'}"
+    homo_path = f"{out_prefix}.{homologous_label}.{out_suffix}.{'sam' if args.sam else 'bam'}"
+    amb_path = f"{out_prefix}.{ambiguous_label}.{out_suffix}.{'sam' if args.sam else 'bam'}"
+    un_path = f"{out_prefix}.{unassignable_label}.{out_suffix}.{'sam' if args.sam else 'bam'}"
     
     bam_file = pysam.AlignmentFile(args.input_bam, "r%s" % BINARY_FLAG)
     ref_file = pysam.AlignmentFile(ref_path, "w%s" % BINARY_FLAG, template=bam_file)

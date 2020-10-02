@@ -8,105 +8,105 @@ HiC read mapping with BWA MEM (http://bio-bwa.sourceforge.net) and WASP to remov
 __author__ = ["Yunjiang Qiu", "Lucas Patel"]
 __license__ = "MIT"
 
-from snakemake.exceptions import MissingInputException
+wildcard_constraints:
+   unit = '\w+',
+   bin = '(?!all)\w+'
 
 rule zoomify:
   input:
-    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.cool")
+    "mapping/out/{unit}.{bin}.cool"
   output:
-    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.mcool")
+    "mapping/out/{unit}.{bin}.mcool"
   params:
     jobname = "{unit}.{bin}.zoomify",
     cooler = config["software"]["cooler"]
   log:
-    "mapping/log/{unit,[^_.]+}.{bin}.zoomify.log"
+    "mapping/log/{unit,[^_.]+}.zoomify.log"
   shell:
-    "{params.cooler} zoomify -o {output} {input}"
+    "{params.cooler} zoomify -o {output} {input} 2>{log}"
 
-rule zoomify_global:
+rule global_zoomify:
   input:
-    expand("mapping/out/{{unit,[^_.]+}}.cool")
+    "mapping/out/{unit}.all.cool"
   output:
-    expand("mapping/out/{{unit,[^_.]+}}.mcool")
+    "mapping/out/{unit}.all.mcool"
   params:
     jobname = "{unit}.zoomify",
     cooler = config["software"]["cooler"]
   log:
     "mapping/log/{unit,[^_.]+}.zoomify.log"
   shell:
-    "{params.cooler} zoomify -o {output} {input}"
+    "{params.cooler} zoomify -o {output} {input} 2>{log}"
 
-rule generate_hic_maps:
+rule generate_hics:
   input:
-    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.pairs")
+    "mapping/out/{unit}.{bin}.dedup.pairs"
   output:
-    hic = expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.hic")
+    hic = "mapping/out/{unit}.{bin}.hic",
   params:
     jobname = "{unit}.{bin}.generate_hic",
-    chroms= config["references"]["chroms"],
-    assembly = config["references"]["assembly"],
-    juicertools = config["software"]["juicertools"],
-    cooler = config["software"]["cooler"]
-  log:
-    "mapping/log/{unit,[^_.]+}.{bin}.generate_hic_maps.log"
-  shell:
-    "java -jar {params.juicertools} pre {input} {output.hic} {params.assembly}"
-
-rule generate_global_hic_maps:
-  input:
-    expand("mapping/out/{{unit,[^_.]+}}.pairs")
-  output:
-    hic = expand("mapping/out/{{unit,[^_.]+}}.hic"),
-  params:
-    jobname = "{unit}.generate_hic",
     chroms = config["references"]["chroms"],
     assembly = config["references"]["assembly"],
     juicertools = config["software"]["juicertools"],
-    cooler = config["software"]["cooler"]
+    java = config["software"]["java"]
   log:
-    "mapping/log/{unit,[^_.]+}.generate_maps.log"
+    "mapping/log/{unit}.{bin}.generate_hics.log"
   shell:
-    "java -jar {params.juicertools} pre {input} {output.hic} {params.assembly}"
+    "{params.java} -jar {params.juicertools} pre {input} {output.hic} {params.assembly} 2>{log}"
 
-rule generate_cool_maps:
+rule generate_cools:
   input:
-    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.pairs")
+    "mapping/out/{unit}.{bin}.dedup.pairs"
   output:
-    cool = expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.cool")
+    cool = "mapping/out/{unit}.{bin}.cool"
   params:
     jobname = "{unit}.{bin}.generate_cool",
-    chroms= config["references"]["chroms"],
+    chroms = config["references"]["chroms"],
     assembly = config["references"]["assembly"],
-    juicertools = config["software"]["juicertools"],
     cooler = config["software"]["cooler"]
   log:
-    "mapping/log/{unit,[^_.]+}.{bin}.generate_cool_maps.log"
+    "mapping/log/{unit}.{bin}.generate_cools.log"
   shell:
-    "{params.cooler} cload pairs -c1 2 -p1 3 -c2 4 -p2 5 {params.chroms}:1000 {input} {output.cool} && \
-    {params.cooler} balance --convergence-policy store_nan --max-iters 2000 {output.cool}"
+    "{params.cooler} cload pairs -c1 2 -p1 3 -c2 4 -p2 5 {params.chroms}:1000 {input} {output.cool} 2>{log} && \
+    {params.cooler} balance --convergence-policy store_nan {output.cool} 2>{log}"
 
-rule generate_global_cool_maps:
+rule generate_global_hic:
   input:
-    expand("mapping/out/{{unit,[^_.]+}}.pairs")
+    "mapping/out/{unit}.all.dedup.pairs"
   output:
-    cool = expand("mapping/out/{{unit,[^_.]+}}.cool")
+    hic = "mapping/out/{unit}.all.hic",
   params:
-    jobname = "{unit}.generate_cool",
+    jobname = "{unit}.all.generate_hic",
     chroms = config["references"]["chroms"],
     assembly = config["references"]["assembly"],
     juicertools = config["software"]["juicertools"],
+    java = config["software"]["java"]
+  log:
+    "mapping/log/{unit}.generate_hic.log"
+  shell:
+    "{params.java} -jar {params.juicertools} pre {input} {output.hic} {params.assembly} 2>{log}"
+
+rule generate_global_cool:
+  input:
+    "mapping/out/{unit}.all.dedup.pairs"
+  output:
+    cool = "mapping/out/{unit}.all.cool"
+  params:
+    jobname = "{unit}.all.generate_cool",
+    chroms = config["references"]["chroms"],
+    assembly = config["references"]["assembly"],
     cooler = config["software"]["cooler"]
   log:
-    "mapping/log/{unit,[^_.]+}.generate_cool_maps.log"
+    "mapping/log/{unit}.generate_cool.log"
   shell:
-    "{params.cooler} cload pairs -c1 2 -p1 3 -c2 4 -p2 5 {params.chroms}:1000 {input} {output.cool} && \
-    {params.cooler} balance --convergence-policy store_nan --max-iters 2000 {output.cool}"
+    "{params.cooler} cload pairs -c1 2 -p1 3 -c2 4 -p2 5 {params.chroms}:1000 {input} {output.cool} 2>{log} && \
+    {params.cooler} balance --convergence-policy store_nan {output.cool} 2>{log}"
 
 rule parse_pairs:
   input:
-    expand("mapping/out/{{unit,[^_.]+}}.sorted.haplotyped.{{bin}}.bam")
+    "mapping/out/{unit}.{bin}.sorted.haplotyped.bam"
   output:
-    pairs = expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.pairs")
+    pairs = "mapping/out/{unit}.{bin}.pairs"
   params:
     jobname = "{unit}.{bin}.parse",
     chroms= config["references"]["chroms"],
@@ -115,50 +115,81 @@ rule parse_pairs:
   log:
     "mapping/log/{unit,[^_.]+}.parse_pairs.log",
   shell:
-    "{params.pairtools} parse -c {params.chroms} --assembly {params.assembly} {input} | {params.pairtools} sort -o {output.pairs}"
+    "{params.pairtools} parse -c {params.chroms} --assembly {params.assembly} {input} | {params.pairtools} sort -o {output.pairs} 2>{log}"
+
+rule dedup:
+  input:
+    "mapping/out/{unit}.{bin}.pairs"
+  output:
+    dedup = "mapping/out/{unit}.{bin}.dedup.pairs",
+    dupes = "mapping/out/{unit}.{bin}.dupes.pairs",
+    stats = "mapping/out/{unit}.{bin}.dedup.stats.txt"
+  params:
+    jobname = "{unit}.{bin}.dedup",
+    pairtools = config["software"]["pairtools"],
+  log:
+    "mapping/log/{unit,[^_.]+}.dedup.log",
+  shell:
+    "{params.pairtools} dedup -o {output.dedup} --output-dups {output.dupes} --output-stats {output.stats} {input} 2>{log}"
 
 rule parse_global_pairs:
   input:
-    expand("mapping/out/{{unit,[^_.]+}}.sorted.haplotyped.bam")
+    "mapping/out/{unit}.sorted.haplotyped.bam"
   output:
-    pairs = expand("mapping/out/{{unit,[^_.]+}}.pairs")
+    pairs = "mapping/out/{unit}.all.pairs",
   params:
     jobname = "{unit}.parse",
     chroms= config["references"]["chroms"],
     assembly = config["references"]["assembly"],
     pairtools = config["software"]["pairtools"],
   log:
-    "mapping/log/{unit,[^_.]+}.parse_pairs.log",
+    "mapping/log/{unit,[^_.]+}.parse_global_pairs.log",
   shell:
-    "{params.pairtools} parse -c {params.chroms} --assembly {params.assembly} {input} | {params.pairtools} sort -o {output.pairs}"
+    "{params.pairtools} parse -c {params.chroms} --assembly {params.assembly} {input} | {params.pairtools} sort -o {output.pairs} 2>{log}"
+
+rule dedup_global:
+  input:
+    "mapping/out/{unit}.all.pairs"
+  output:
+    dedup = "mapping/out/{unit}.all.dedup.pairs",
+    dupes = "mapping/out/{unit}.all.dupes.pairs",
+    stats = "mapping/out/{unit}.all.dedup.stats.txt"
+  params:
+    jobname = "{unit}.all.dedup",
+    pairtools = config["software"]["pairtools"],
+  log:
+    "mapping/log/{unit,[^_.]+}.dedup_global.log",
+  shell:
+    "{params.pairtools} dedup -o {output.dedup} --output-dups {output.dupes} --output-stats {output.stats} {input} 2>{log}"
 
 rule haplotype_split:
-    input:
-        bam = "mapping/out/{unit,[^_.]+}.sorted.haplotyped.bam"
-    output:
-        expand("mapping/out/{{unit,[^_.]+}}.sorted.haplotyped.{{bin}}.bam")
-    params:
-        jobname = "{unit}.{bin}.split",
-        split = config["scripts"]["split"],
-        ref = config["bins"][0],
-        alt = config["bins"][1]
-    log:
-        "mapping/log/{unit,[^_.]+}.{bin}.split_haplotypes.log"
-    shell:
-        "python {params.split} {input} -ref {params.ref} -alt {params.alt}"
+  input:
+    "mapping/out/{unit}.sorted.haplotyped.bam"
+  output:
+    expand("mapping/out/{{unit}}.{bin}.sorted.haplotyped.bam", bin=config["bins"])
+  params:
+    jobname = "{unit}.split",
+    split = config["scripts"]["split"],
+    ref = config["bins"][0],
+    alt = config["bins"][1]
+  log:
+    "mapping/log/{unit,[^_.]+}.split_haplotypes.log"
+  shell:
+    "python {params.split} {input} -ref {params.ref} -alt {params.alt} 2>{log}"
 
 rule haplotype_reads:
   input:
-    bam = "mapping/out/{unit,[^_.]+}.sorted.bam",
+    bam = "mapping/out/{unit}.sorted.bam",
     snp = config["references"]["snp"]
   output:
-    "mapping/out/{unit,[^_.]+}.sorted.haplotyped.bam"
+    "mapping/out/{unit}.sorted.haplotyped.bam"
   params:
     jobname = "{unit}.haplotype",
     haplotype = config["scripts"]["haplotype"],
     prefix = "mapping/out/{unit,[^_.]+}",
+    python = config["software"]["python2"],
     samtools = config["software"]["samtools"]
   log:
     "mapping/log/{unit,[^_.]+}.assign_haplotypes.log"
   shell:
-    "python2.7 {params.haplotype} {input.bam} {input.snp} {params.prefix} 2> {log} && paste -d '\t' <({params.samtools} view {input.bam}) <(zcat {params.prefix}.haplotypes.tsv.gz) | cat <({params.samtools} view -H {input.bam}) - | {params.samtools} view -bS - | {params.samtools} sort -n - -o {output} -T {params.prefix}.hap_sort"
+    "{params.python} {params.haplotype} {input.bam} {input.snp} {params.prefix} 2> {log} && paste -d '\t' <({params.samtools} view {input.bam}) <(zcat {params.prefix}.haplotypes.tsv.gz) | cat <({params.samtools} view -H {input.bam}) - | {params.samtools} view -bS - | {params.samtools} sort -n - -o {output} -T {params.prefix}.hap_sort 2>{log}"

@@ -21,7 +21,8 @@ def cmdline_args():
     return(args)
 
 def count(args):
-    pre=os.path.splitext(args.input_pairs)[0]
+    pre_dedup=os.path.splitext(args.input_pairs)[0]
+    pre=os.path.splitext(pre_dedup)[0]
     chro=1 if not args.all else "all"
     seen=[]
     breaks = [(10000*1.12**i) for i in range(0,100)]

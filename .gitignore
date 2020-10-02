@@ -1,3 +1,6 @@
 # Hi-C pipeline .gitignore
 
 run.log
+
+/snp/*
+/genome/*

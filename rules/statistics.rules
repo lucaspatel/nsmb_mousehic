@@ -8,68 +8,71 @@ HiC read mapping with BWA MEM (http://bio-bwa.sourceforge.net) and WASP to remov
 __author__ = ["Lucas Patel"]
 __license__ = "MIT"
 
-from snakemake.exceptions import MissingInputException
+wildcard_constraints:
+   unit = '\w+',
+   bin = '(?!all)\w+'
 
 rule calculate_statistics:
   input:
-    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.pairs")
+    "mapping/out/{unit}.{bin}.dedup.pairs"
   output:
-    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.counts.zip")
+    "mapping/out/{unit}.{bin}.counts.zip"
   params:
     jobname = "{unit}.{bin}.stats",
-    prefix = "mapping/out/{unit,[^_.]+}",
+    prefix = "mapping/out/{unit}",
     bin = "{bin}",
     count = config["scripts"]["count"],
     cooler = config["software"]["cooler"]
   log:
-    "mapping/log/{unit,[^_.]+}.stats.log"
+    "mapping/log/{unit}.{bin}.stats.log"
   shell:
-    "python {params.count} {input} && \
-    python {params.count} {input} --all && \
-    zip {params.prefix}.{params.bin}.counts.zip {params.prefix}.{params.bin}_*_intracounts.tsv && \
-    rm {params.prefix}.{params.bin}_*_intracounts.tsv"
+    "python {params.count} {input} 2>{log} && \
+    python {params.count} {input} --all 2>{log} && \
+    zip {params.prefix}.{params.bin}.counts.zip {params.prefix}.{params.bin}_*_intracounts.tsv 2>{log} && \
+    rm {params.prefix}.{params.bin}_*_intracounts.tsv 2>{log}"
     
 rule calculate_global_statistics:
   input:
-    expand("mapping/out/{{unit,[^_.]+}}.pairs")
+    "mapping/out/{unit}.all.dedup.pairs"
   output:
-    expand("mapping/out/{{unit,[^_.]+}}.counts.zip")
+    "mapping/out/{unit}.all.counts.zip"
   params:
-    jobname = "{unit}.stats",
-    prefix = "mapping/out/{unit,[^_.]+}",
+    jobname = "{unit}.all.stats",
+    prefix = "mapping/out/{unit}",
     count = config["scripts"]["count"],
     cooler = config["software"]["cooler"]
   log:
-    "mapping/log/{unit,[^_.]+}.stats.log"
+    "mapping/log/{unit}.stats.log"
   shell:
-    "python {params.count} {input} && \
-    python {params.count} {input} --all && \
-    zip {params.prefix}.counts.zip {params.prefix}_*_intracounts.tsv && \
-    rm {params.prefix}_*_intracounts.tsv"
+    "python {params.count} {input} 2>{log} && \
+    python {params.count} {input} --all 2>{log} && \
+    zip {params.prefix}.all.counts.zip {params.prefix}.all_*_intracounts.tsv 2>{log} && \
+    rm {params.prefix}.all_*_intracounts.tsv 2>{log}"
 
 rule calculate_pairing_score:
   input:
-    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.hic")
+    "mapping/out/{unit}.{bin}.hic"
   output:
-    expand("mapping/out/{{unit,[^_.]+}}.{{bin}}.pairing.bedgraph")
+    "mapping/out/{unit}.{bin}.pairing.bedgraph"
   params:
     jobname = "{unit}.{bin}.calc_ps",
-    prefix = "mapping/out/{unit,[^_.]+}.{bin}",
+    prefix = "mapping/out/{unit}.{bin}",
     pairing = config["scripts"]["pairing"],
-    cooler = config["software"]["cooler"]
+    cooler = config["software"]["cooler"],
+    hic2cool = config["software"]["hic2cool"]
   log:
-    "mapping/log/{unit,[^_.]+}.calc_ps.log"
+    "mapping/log/{unit}.{bin}.calc_ps.log"
   shell:
-    "hic2cool convert {input} {params.prefix}.100k.cool -r 100000 && \
-    {params.cooler} balance {params.prefix}.100k.cool --convergence-policy store_nan && \
-    python {params.pairing} --homolog-suffixes '' '' {params.prefix}.100k.cool > {output} && \
-    rm {params.prefix}.100k.cool"
+    "{params.hic2cool} convert {input} {params.prefix}.100k.cool -r 100000 2>{log} && \
+    {params.cooler} balance {params.prefix}.100k.cool --convergence-policy store_nan 2>{log} && \
+    python {params.pairing} --homolog-suffixes '' '' {params.prefix}.100k.cool 2>{log} > {output} && \
+    rm {params.prefix}.100k.cool 2>{log}"
 
 rule calculate_global_pairing_score:
   input:
-    expand("mapping/out/{{unit,[^_.]+}}.hic")
+    "mapping/out/{unit}.all.hic"
   output:
-    expand("mapping/out/{{unit,[^_.]+}}.pairing.bedgraph")
+    "mapping/out/{unit}.all.pairing.bedgraph"
   params:
     jobname = "{unit}.calc_ps",
     prefix = "mapping/out/{unit,[^_.]+}",
@@ -77,9 +80,9 @@ rule calculate_global_pairing_score:
     cooler = config["software"]["cooler"],
     hic2cool = config["software"]["hic2cool"]
   log:
-    "mapping/log/{unit,[^_.]+}.calc_ps.log"
+    "mapping/log/{unit}.calc_ps.log"
   shell:
-    "hic2cool convert {input} {params.prefix}.100k.cool -r 100000 && \
-    {params.cooler} balance {params.prefix}.100k.cool --convergence-policy store_nan && \
-    python {params.pairing} --homolog-suffixes '' '' {params.prefix}.100k.cool > {output} && \
-    rm {params.prefix}.100k.cool"
+    "{params.hic2cool} convert {input} {params.prefix}.100k.cool -r 100000 2>{log} && \
+    {params.cooler} balance {params.prefix}.100k.cool --convergence-policy store_nan 2>{log} && \
+    python {params.pairing} --homolog-suffixes '' '' {params.prefix}.100k.cool 2>{log} > {output} && \
+    rm {params.prefix}.100k.cool 2>{log}"
