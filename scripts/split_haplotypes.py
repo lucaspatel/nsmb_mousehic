@@ -90,7 +90,7 @@ def split_haplotypes(args):
             # read1 has reference alleles, read2 has reference alleles
             # read1 has reference alleles, read2 has no alleles
             # read1 has no alleles, read2 has reference alleles
-            if ((r1_refs > 0 and r1_refs == 0 and r2_refs > 0 and r2_alts == 0) or \
+            if ((r1_refs > 0 and r1_alts == 0 and r2_refs > 0 and r2_alts == 0) or \
                 (r1_refs > 0 and r1_alts == 0 and r2_refs == 0 and r2_alts == 0) or \
                 (r1_refs == 0 and r1_alts == 0 and r2_refs > 0 and r2_alts == 0)):
                 ref_file.write(r1)
